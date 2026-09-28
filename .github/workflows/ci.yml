@@ -1,0 +1,84 @@
+name: CareFlow checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: careflow-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.3
+        env:
+          POSTGRES_USER: careflow
+          POSTGRES_PASSWORD: careflow
+          POSTGRES_DB: careflow_test_backend
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U careflow -d careflow_test_backend"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://careflow:careflow@localhost:5432/careflow_test_backend
+      TEST_DATABASE_URL: postgresql+psycopg://careflow:careflow@localhost:5432/careflow_test_backend
+      APP_ORIGIN: http://localhost:5173
+      AI_MODE: mock
+      AI_API_KEY: ''
+      ENVIRONMENT: development
+      PGPASSWORD: careflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r backend/requirements.txt
+      - name: Python lint and format
+        run: ruff check . && ruff format --check .
+        working-directory: backend
+      - name: Disposable migration and browser databases
+        run: |
+          createdb -h localhost -U careflow careflow_test_migration
+          createdb -h localhost -U careflow careflow_ci_browser
+      - name: Upgrade existing records and check schema drift
+        run: python scripts/check_migrations.py
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://careflow:careflow@localhost:5432/careflow_test_migration
+      - name: PostgreSQL regression and concurrency tests
+        run: pytest -q
+        working-directory: backend
+      - run: npm ci && npm run format:check && npm run lint && npm run typecheck && npm run build
+        working-directory: frontend
+      - name: Seed isolated browser data
+        run: alembic upgrade head && python -m app.seed
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://careflow:careflow@localhost:5432/careflow_ci_browser
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Ready backend and browser tests with mock AI
+        env:
+          DATABASE_URL: postgresql+psycopg://careflow:careflow@localhost:5432/careflow_ci_browser
+        run: |
+          cd backend
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 > ../backend-ci.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid"' EXIT
+          python scripts/wait_ready.py http://localhost:8000/api/health --timeout 60
+          cd ../frontend
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          retention-days: 7
+          path: |
+            frontend/test-results/**/*.png
+            docs/screenshots

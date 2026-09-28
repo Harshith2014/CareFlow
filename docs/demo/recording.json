@@ -1,0 +1,57 @@
+{
+  "recorded_at": "2026-09-28T10:37:09.404Z",
+  "mode": "mock then disabled; no live calls",
+  "chapters": [
+    {
+      "seconds": 0.525,
+      "title": "Independent portfolio demonstration; fictional data; mock AI"
+    },
+    {
+      "seconds": 10.002,
+      "title": "Receptionist registers a fictional patient"
+    },
+    {
+      "seconds": 21.074,
+      "title": "Book a future slot; PostgreSQL enforces one active booking"
+    },
+    {
+      "seconds": 35.015,
+      "title": "Review old and new times, give a reason, confirm rescheduling"
+    },
+    {
+      "seconds": 56.015,
+      "title": "A real second session books the displayed slot: the stale click receives 409"
+    },
+    {
+      "seconds": 69.088,
+      "title": "Assigned doctor enters an ordinary unstructured fictional note"
+    },
+    {
+      "seconds": 89.002,
+      "title": "Mock draft: deterministic copy, not live inference; doctor organizes and reviews"
+    },
+    {
+      "seconds": 111.001,
+      "title": "Explicit human finalization; source and reviewed fields become immutable"
+    },
+    {
+      "seconds": 121.614,
+      "title": "A direct clinical-record request by reception is denied by the backend"
+    },
+    {
+      "seconds": 132.22,
+      "title": "AI is genuinely disabled in the backend; manual documentation remains available"
+    }
+  ],
+  "observed": {
+    "booked": "5e3a7186-0766-4c8e-b486-5b2056e59098",
+    "rescheduled_same_identity": true,
+    "booking_conflict_status": 409,
+    "source_preserved": true,
+    "finalized": true,
+    "unauthorized_status": 403,
+    "manual_saved_with_ai_disabled": true,
+    "manual_appointment": "22213584-b746-4f07-8135-cf54831a8d4e",
+    "elapsed_seconds": 180.002
+  }
+}

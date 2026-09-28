@@ -1,0 +1,8 @@
+{
+  "model": "gpt-4.1-mini",
+  "verified_on": "2026-09-28",
+  "source": "https://developers.openai.com/api/docs/models/gpt-4.1-mini",
+  "input_usd_per_million": 0.40,
+  "output_usd_per_million": 1.60,
+  "notes": "Standard text pricing, no batch/caching discount assumed; reverify before spending. Taxes/account-specific charges excluded."
+}

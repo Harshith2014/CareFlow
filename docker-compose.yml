@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:18.3
+    environment:
+      POSTGRES_USER: careflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-careflow-local-only}
+      POSTGRES_DB: careflow
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careflow -d careflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://careflow:${POSTGRES_PASSWORD:-careflow-local-only}@db:5432/careflow
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:5173}
+      CLINIC_TIMEZONE: ${CLINIC_TIMEZONE:-Asia/Kolkata}
+      AI_MODE: ${AI_MODE:-mock}
+      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_TIMEOUT: ${AI_TIMEOUT:-20}
+      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-1024}
+    ports: ["127.0.0.1:${BACKEND_PORT:-8000}:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:${FRONTEND_PORT:-5173}:80"]
+    depends_on: [backend]
+volumes:
+  pgdata:

@@ -1,0 +1,24 @@
+{
+  "dataset_version": "careflow-fictional-v2",
+  "dataset_sha256": "6d069de362391ffaa1b0c5dbd35e5a2b74acf6dfe2ff5a86f86e3a7dab078314",
+  "case_count": 25,
+  "model": "gpt-4.1-mini",
+  "prompt_version": "careflow-organizer-v2",
+  "max_requests": 22,
+  "attempts_per_case": 1,
+  "max_output_tokens": 1024,
+  "conservative_input_token_ceiling": 16000,
+  "timeout_seconds": 20.0,
+  "pricing": {
+    "model": "gpt-4.1-mini",
+    "verified_on": "2026-09-28",
+    "source": "https://developers.openai.com/api/docs/models/gpt-4.1-mini",
+    "input_usd_per_million": 0.4,
+    "output_usd_per_million": 1.6,
+    "notes": "Standard text pricing, no batch/caching discount assumed; reverify before spending. Taxes/account-specific charges excluded."
+  },
+  "pricing_current_for_model": true,
+  "conservative_reserved_usd": 0.176845,
+  "key_configured": false,
+  "live_evaluation": "not run"
+}

@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.png binary
+*.webm binary
+# Review sheets deliberately include the whitespace-only invalid input case.
+docs/evaluation-*-review.csv -whitespace
