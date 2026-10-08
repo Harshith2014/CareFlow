@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_origin: str = "http://localhost:5173"
     clinic_timezone: Literal["Asia/Kolkata"] = "Asia/Kolkata"
     session_hours: int = 8
+    static_dir: str = ""
     ai_mode: Literal["mock", "live", "disabled"] = "mock"
     ai_model: str = "gpt-4.1-mini"
     ai_api_key: str = ""

@@ -45,3 +45,11 @@ Browser tests subsequently exposed two more issues: implicit select labels inclu
 ## Rejected shortcuts
 
 No client-only authorization, SELECT-then-INSERT booking guarantee, localStorage tokens, automatic finalization, mock-based live-model quality claims, real patients, or invented clinical/business impact. Hosted CI and Docker runtime verification are reported only when actually run.
+
+## Free hosting preparation — October 8, 2026
+
+- Verified current Render/Neon free-tier documentation; avoided Render's expiring free database. Prepared one same-origin web container to retain the existing cookie/CSRF architecture and PostgreSQL model instead of rebuilding on a different database.
+- Added explicit first-administrator provisioning instead of enabling the local demo seeder in production. Tests cover concurrent first-account attempts, password hashing, audit creation, and refusal when staff already exist.
+- The Docker build surfaced a new source-map-js denial-of-service advisory. Updated that single transitive dependency from 1.2.1 to the compatible patched release; npm audit then reported zero known vulnerabilities. No blanket major-version upgrade was performed.
+- The Windows patch helper failed before applying changes. Used approved file edits through PowerShell/Python, then checked formatting, diffs, and tests.
+- Kept hosting account setup separate from local verification. No provider credential was requested in chat, no paid resource was created, and no public URL was invented.

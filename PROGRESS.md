@@ -29,3 +29,13 @@ See docs/verification.md for exact environments, timing, and results.
 The existing app database remains in the Compose volume. Tests use disposable careflow_test_release databases (separate local port 55432 cluster and Docker cluster). Migration verification used a new careflow_test_migration_release, with no reset/stamp of legacy databases. .env, .venv, .local-pg, logs, node_modules, and browser traces are ignored.
 
 Local implementation, verification, demonstration recording, and guides are complete. Source release b8e54f5 was pushed to main at https://github.com/Harshith2014/CareFlow.git; the remote SHA matched and the repository remains private. The release skips CI, and GitHub reported no runs. Live evaluation is NOT RUN: no capped spending authorization or configured local key. Hosted Actions is NOT RUN pending authorization. No external deployment or paid model calls occurred. Remaining external steps are an explicitly authorized live evaluation and hosted CI run; all local work is complete.
+
+## Free hosting follow-up — October 8, 2026
+
+User selected **free hosting only**. Plan: retain FastAPI/PostgreSQL, package React and API at one HTTPS origin, verify locally, then deploy after provider account access is available.
+
+Completed: root non-root Docker image, Render Free blueprint with automatic deployments off, automatic Render HTTPS origin, static serving with API precedence/security headers, interactive first-admin provisioning with no published password, six new hosting/bootstrap tests, and exact Render/Neon instructions in README. Local production demo seeding remains forbidden. Patched source-map-js 1.2.1 → 1.2.2 after a newly reported advisory.
+
+Verification: 52 PostgreSQL tests passed; six focused hosting tests passed after the origin change; lint/format/types/build passed; npm audit reports zero known vulnerabilities; combined Docker image built and passed all six browser workflows on port 5175 with a separate fictional database. Original Compose data was preserved. See docs/verification.md for commands and limits.
+
+Next: sign into/create Render and Neon Free accounts, connect the private GitHub repository, supply the Neon connection only through private configuration, deploy the free Blueprint, bootstrap a private administrator, and verify the actual HTTPS URL. No Render/Neon account connection is available in this session. **Not live yet.** No hosting resource or paid service was provisioned; no live AI calls or hosted GitHub Actions runs occurred.

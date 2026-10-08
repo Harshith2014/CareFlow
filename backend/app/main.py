@@ -13,6 +13,7 @@ from . import responses as out
 from . import schemas as s
 from .config import settings
 from .db import get_db
+from .hosting import mount_frontend
 from .models import (
     AIDraft,
     Appointment,
@@ -46,6 +47,12 @@ async def private_responses(request: Request, call_next):
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if settings().static_dir and not request.url.path.startswith(("/docs", "/redoc")):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; style-src 'self'; img-src 'self' data:; "
+            "frame-ancestors 'none'; base-uri 'self'"
+        )
     return response
 
 
@@ -480,3 +487,7 @@ def audits(page: int = Query(1, ge=1), user=Depends(admin), db: DBSession = DB):
         "page": page,
         "page_size": 20,
     }
+
+
+# Mount last so API and OpenAPI routes retain precedence.
+mount_frontend(app, settings().static_dir)

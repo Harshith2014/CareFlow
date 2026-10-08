@@ -135,6 +135,83 @@ Invoke-RestMethod "http://localhost:8000/api/health"
 - **No upcoming slots:** rerun the explicit demo seed and choose a future date for the selected doctor.
 - **Invalid request origin:** use `http://localhost:5173` with the default configuration. Custom ports must also match `APP_ORIGIN` in `.env`.
 
+## Free hosting: Render + Neon
+
+This deployment keeps the existing React/FastAPI/PostgreSQL application. One **Render Free web service** serves the built frontend and API at the same HTTPS origin; a separate **Neon Free PostgreSQL** project stores data. The local Compose installation is unchanged. AI stays in **mock** mode.
+
+**Status:** deployment files are prepared; a public deployment is not yet verified. Account sign-in and private database configuration are required. No hosting resource has been purchased or provisioned by this coding session.
+
+### 1. Create the free accounts and database
+
+1. Sign in at [Render](https://dashboard.render.com/) and [Neon](https://console.neon.tech/). Use their free plans.
+2. In Neon, create a separate project such as **careflow-demo**. Use only fictional records; do not upload your local database.
+3. Open **Connect**, choose a direct PostgreSQL connection (connection pooling off), and copy the connection string privately.
+4. Change only its leading `postgresql://` to `postgresql+psycopg://`. Preserve the username, encoded password, hostname, database name, and SSL query parameters. Do not paste the connection string into chat or commit it.
+
+Do not upgrade plans, add a paid database/disk, buy a domain, or authorize overages. Use an account without a payment method for this free-only demonstration. If a provider requires a payment method or paid service to continue, stop that setup and choose another free option.
+
+### 2. Deploy the repository on Render
+
+1. Choose **New → Blueprint** and connect GitHub. Grant Render access to the private **Harshith2014/CareFlow** repository; the repository does not need to become public.
+2. Select branch **main** and the root `render.yaml` file.
+3. Confirm the preview contains exactly one **Free web service**, no Render database, disk, or paid resource.
+4. Set the prompted **DATABASE_URL** secret to your privately copied Neon SQLAlchemy connection string.
+5. Create/deploy the Blueprint and wait for the service to become healthy.
+
+The root Dockerfile builds React, copies it into the Python image, and runs as an unprivileged user. Startup validates configuration, applies Alembic migrations, and listens on Render's assigned `PORT`. `APP_ORIGIN` is automatically populated from Render's `RENDER_EXTERNAL_URL`, preserving exact-origin CSRF checks. HTTPS and production-mode Secure cookies are required. The Blueprint sets `AI_MODE=mock` and does not configure an AI key.
+
+Use the actual **https://…onrender.com** link shown in Render; it is not known until your service exists. Open that address and `https://YOUR-ACTUAL-HOST/api/health`; health should return `{"status":"ok"}`. If you deliberately override `APP_ORIGIN`, use that exact HTTPS origin without a trailing slash. Automatic deployments are off to conserve free build usage; use Render's **Manual Deploy → Deploy latest commit** for future updates.
+
+### 3. Create your private online administrator
+
+The published local demo password is **not** used online. `python -m app.seed` continues to refuse production mode. Render's free service has no interactive shell, so run the bootstrap command from your own computer after Render has applied migrations.
+
+Open PowerShell:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker build -t careflow-hosted:local .
+notepad .env.hosting
+```
+
+In Notepad, save this configuration with your actual values. Keep the file named **.env.hosting**, without a .txt extension:
+
+```dotenv
+ENVIRONMENT=production
+AI_MODE=mock
+DATABASE_URL=postgresql+psycopg://YOUR_NEON_CONNECTION_WITH_SSL
+APP_ORIGIN=https://YOUR-ACTUAL-HOST.onrender.com
+```
+
+The file is gitignored and excluded from Docker builds. Keep it private. Then run:
+
+```powershell
+docker run --rm -it --env-file .env.hosting careflow-hosted:local python -m app.create_admin
+```
+
+Enter an administrator email, display name, and a new password when prompted. Password entry is hidden. The command refuses a database that already has staff and uses a PostgreSQL transaction/advisory lock to prevent duplicate initial accounts. It never prints the password. It does not reset existing records.
+
+Sign in at the online URL using the account you just created. In **Staff & slots**, create a receptionist and doctor with separate private passwords, then create future 30-minute doctor slots. Use the receptionist to register fictional patients and book visits. Do not publish the administrator credentials. The localhost demo accounts remain available only in your separately seeded local installation.
+
+### 4. Verify before sharing the URL
+
+- Reception: register a fictional patient, book a future slot, and reschedule it.
+- Doctor: open that visit, save a source note, generate a clearly labeled mock draft, review/edit, save, and finalize.
+- Confirm the final record is immutable and the appointment is completed.
+- Reception: directly request the encounter API URL and confirm 403.
+- Sign out and confirm the session no longer works.
+- Reload after a service restart and confirm the fictional records remain in Neon.
+
+A successful local container test does not prove the hosted deployment or Neon connectivity. Record actual hosted results and the URL only after these checks succeed. This remains a portfolio demo with private staff access, not a clinically ready service. Existing omissions such as login throttling and password recovery still apply.
+
+### Free-tier behavior and costs
+
+Render's free service sleeps after 15 minutes of inactivity and takes about a minute to wake. Free instance hours, bandwidth, and build limits apply; without a payment method, excess usage can suspend service/builds instead of purchasing extra capacity. Render's free PostgreSQL expires after 30 days, which is why this setup uses Neon Free. [Render free-tier documentation](https://render.com/docs/free).
+
+Neon has its own free storage/compute limits and idle suspension; check the current dashboard before creating the project. Free limits and terms can change; no forever-free or uptime guarantee is claimed. [Neon free-plan announcement](https://neon.com/blog/neon-free-plan-1-gb-per-project). Do not add artificial keep-alive traffic to avoid sleeping.
+
+Deployment configuration follows [Render Docker hosting](https://render.com/docs/docker), [Blueprint fields](https://render.com/docs/blueprint-spec), and [default environment variables](https://render.com/docs/environment-variables). Verified against these documents on October 8, 2026.
+
 ## Architecture and main files
 
 ```text

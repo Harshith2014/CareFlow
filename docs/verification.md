@@ -60,3 +60,14 @@ Only a successful run tied to its commit SHA supports a hosted-green claim.
 The newer Playwright Chromium 1243 download timed out repeatedly; pinning Playwright 1.58.2 restored a matching installed/browser-download pair. Tests used that matching pair without CHROMIUM_PATH. Vite and pytest temporary-directory access required approved execution outside the Windows sandbox; failures caused by that boundary are not reported as application passes.
 
 Starlette reports its existing TestClient/httpx deprecation warning; the pinned suite passes. Windows pytest also reported an existing cache-directory warning; Linux had only the Starlette warning. The local host uses Node 25.8; the Docker production build uses the documented Node 24. No live quality evaluation, clinical assessment, load benchmark, penetration test, compliance claim, or measured business benefit is asserted.
+
+## Free hosting preparation — October 8, 2026
+
+- `python -m pytest -q` against the dedicated local PostgreSQL database: **52 passed in 41.53s** (the previous 46 plus six hosting/bootstrap tests). After automatic Render-origin handling was added, `python -m pytest -q tests/test_hosting.py`: **6 passed in 4.91s**.
+- `python -m ruff check .` and `python -m ruff format --check .`: passed (27 Python files).
+- Frontend `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm run build`: passed. `npm update source-map-js` changed only 1.2.1 → 1.2.2; `npm audit --json` reports zero known vulnerabilities.
+- `docker build -t careflow-hosted:local .`: passed with the committed lockfile and Node 24 build stage. Image has the built frontend, runs as UID 1000, and does not contain local .env/.env.hosting files.
+- Started that image on local port 5175, attached to a **new careflow_hosting_check** PostgreSQL database; migrations and health readiness polling passed. Development mode was explicitly used for this local HTTP check; cloud configuration stays production/HTTPS.
+- `BASE_URL=http://localhost:5175 npm run test:e2e` (PowerShell sets the environment separately): **six passed in 33.7s** against the combined image, covering desktop/mobile workflows and rescheduling conflicts. Screenshots were refreshed from this local hosted-image check.
+- Existing Compose database and records were not reset. The temporary hosted-image service is stopped after verification; its separate fictional test database is retained.
+- **Not verified:** actual Render deployment, provider account access, Neon connectivity, public TLS, hosted workflows, or live AI quality. No cloud resource was created and no paid API call occurred. Account sign-in/private database configuration is the remaining deployment blocker, not a failing local test.

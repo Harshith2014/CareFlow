@@ -307,7 +307,7 @@ export default function App() {
         <section className="login-form">
           <div className="demo">Demo — fictional data</div>
           <h2>Welcome to your workspace</h2>
-          <p className="muted">Sign in with a locally seeded staff account.</p>
+          <p className="muted">Sign in with your clinic staff account.</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();

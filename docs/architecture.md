@@ -95,3 +95,13 @@ Session cookies are HttpOnly, SameSite=Strict, path `/api`, with an eight-hour a
 Local Compose publishes only loopback ports and does not expose PostgreSQL. Demo seeding refuses production mode. Account enumeration responses are generic, with a dummy Argon2 verification for unknown users. Login throttling, MFA, password reset, fine-grained clinician coverage, operational monitoring, backup/restore policy, and regulatory compliance are outside this demonstration. The application database user owns its tables locally; database-level immutable audit enforcement is not claimed.
 
 Business checks are concentrated in route workflows plus `services.py`; `db.py`, models, input/output schemas, security, and AI adapters have separate responsibilities. This keeps a small project inspectable. If the routes grow, extract individual booking and encounter services rather than introducing distributed services.
+
+## Optional free hosted demo
+
+The root Dockerfile combines the Vite build with FastAPI. `app/hosting.py` mounts static files after API routes; the frontend uses the existing relative /api URLs. Local Compose still uses separate Nginx and backend containers. Hosted startup derives APP_ORIGIN from Render's assigned HTTPS URL, checks the origin/port/database driver, runs migrations, and launches Uvicorn as a non-root user. No database migration or schema change was needed for hosting.
+
+Render Free runs the web service; Neon Free is the separate PostgreSQL store. The blueprint creates no paid resource and disables automatic builds. Provider accounts and the actual Neon connection remain unconfigured in this session; no hosted success is claimed. Root Docker build exclusions prevent local .env files, PostgreSQL data, logs, and repository metadata from entering the image.
+
+Production seeding remains prohibited. The interactive `app/create_admin.py` command provisions the first administrator only into a staff-empty database, hashes the privately entered password, and appends an audit event in the same transaction. A PostgreSQL advisory transaction lock serializes concurrent first-account attempts. Existing staff cannot be replaced with this command. Later accounts and slots are managed through the existing administrator UI. There is no added signup endpoint or default hosted password.
+
+HTTPS is supplied by the hosting provider; Secure/HttpOnly/SameSite cookies, Origin and CSRF checks remain enforced. Mock AI is the default. The free service can sleep or be suspended at quota limits. This does not add production monitoring, password recovery, or login throttling; share only fictional data and private staff access.
