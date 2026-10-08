@@ -4,6 +4,8 @@
 
 CareFlow connects a fictional clinic's front desk and doctor workflow: register → book/reschedule → document → generate a separate draft → review → explicitly finalize. It demonstrates backend authorization, PostgreSQL concurrency, transactional state changes, and cautious AI integration. It is not intended for clinical use and makes no HIPAA, diagnostic-accuracy, or measured time-savings claims.
 
+**Hosted demo:** [Open CareFlow](https://careflow-demo-956v.onrender.com/). Sign in with your privately provisioned staff account. The hosted demo is configured for mock AI and fictional data; local demo credentials are not automatically available online.
+
 ## Run with Docker Compose
 
 Verified screenshots: [desktop encounter](docs/screenshots/desktop-encounter.png), [mobile encounter](docs/screenshots/mobile-encounter.png). Actual test results are recorded in [verification.md](docs/verification.md).
@@ -139,7 +141,7 @@ Invoke-RestMethod "http://localhost:8000/api/health"
 
 This deployment keeps the existing React/FastAPI/PostgreSQL application. One **Render Free web service** serves the built frontend and API at the same HTTPS origin; a separate **Neon Free PostgreSQL** project stores data. The local Compose installation is unchanged. AI stays in **mock** mode.
 
-**Status:** deployment files are prepared; a public deployment is not yet verified. Account sign-in and private database configuration are required. No hosting resource has been purchased or provisioned by this coding session.
+**Status:** the user has deployed CareFlow at [careflow-demo-956v.onrender.com](https://careflow-demo-956v.onrender.com/). Hosted end-to-end verification has not been independently completed in this coding session. Follow the verification steps below before sharing staff access.
 
 ### 1. Create the free accounts and database
 

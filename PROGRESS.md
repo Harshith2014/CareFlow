@@ -39,3 +39,7 @@ Completed: root non-root Docker image, Render Free blueprint with automatic depl
 Verification: 52 PostgreSQL tests passed; six focused hosting tests passed after the origin change; lint/format/types/build passed; npm audit reports zero known vulnerabilities; combined Docker image built and passed all six browser workflows on port 5175 with a separate fictional database. Original Compose data was preserved. See docs/verification.md for commands and limits.
 
 Next: sign into/create Render and Neon Free accounts, connect the private GitHub repository, supply the Neon connection only through private configuration, deploy the free Blueprint, bootstrap a private administrator, and verify the actual HTTPS URL. No Render/Neon account connection is available in this session. **Not live yet.** No hosting resource or paid service was provisioned; no live AI calls or hosted GitHub Actions runs occurred.
+
+## Hosted demo link follow-up
+
+User supplied the Render deployment URL https://careflow-demo-956v.onrender.com/ and requested adding it to GitHub. Added a prominent README link and updated deployment status. Hosted end-to-end checks remain unverified in this session; no credentials are included. Documentation-only verification: git diff --check.
