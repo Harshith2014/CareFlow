@@ -8,19 +8,56 @@ CareFlow connects a fictional clinic's front desk and doctor workflow: register 
 
 Verified screenshots: [desktop encounter](docs/screenshots/desktop-encounter.png), [mobile encounter](docs/screenshots/mobile-encounter.png). Actual test results are recorded in [verification.md](docs/verification.md).
 
-Prerequisites: Docker Desktop with the Linux-container engine running, Docker Compose, and free local ports 5173 and 8000. No API key is needed.
+Prerequisites: Docker Desktop with the Linux-container engine running, Docker Compose, and free local ports 5173 and 8000. No API key or Codex is needed. Run the following commands yourself in **PowerShell**. Commands shown in separate blocks are separate steps.
+
+### 1. Open Docker Desktop and the project folder
+
+Open Docker Desktop from the Windows Start menu and wait for its engine to start. Then open PowerShell:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker info
+```
+
+If `docker info` cannot connect, wait for Docker Desktop to finish starting before continuing. These instructions use your existing project folder; cloning the repository again is unnecessary.
+
+### 2. Build and start CareFlow
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 docker compose up --build -d
-docker compose exec backend python -m app.seed
+docker compose ps
 ```
 
-On macOS/Linux use `test -f .env || cp .env.example .env` for the first command. Open **http://localhost:5173**. Use `localhost`, matching `APP_ORIGIN`; using `127.0.0.1` in the browser will fail the origin check. API documentation: **http://localhost:8000/docs**. The backend applies Alembic migrations on startup. PostgreSQL data persists in the `pgdata` named volume. `docker compose down` stops the stack without deleting that volume.
+The first command creates `.env` only when missing, preserving existing settings. The build starts the frontend, backend, and PostgreSQL. The first build may take several minutes. If a command reports an error, resolve it before continuing.
+
+### 3. Create demo accounts and refresh appointment slots
+
+```powershell
+docker compose exec -T backend python -m app.seed
+```
+
+If the backend is still starting or applying migrations, inspect `docker compose logs --tail 50 backend` and retry seeding after startup completes. Seeding preserves existing patients and bookings. It adds missing demo accounts and slots for the next eight clinic dates.
+
+### 4. Open CareFlow in your browser
+
+Type this **separate command** in PowerShell:
+
+```powershell
+Start-Process "http://localhost:5173"
+```
+
+**`docker compose up -d` does not print a Vite-style link or open a browser. You must run `Start-Process` yourself**, or type **http://localhost:5173** into your browser's address bar. Bookmark this address for later use. Closing PowerShell does not stop containers started with `-d`.
+
+Use `localhost`, matching `APP_ORIGIN`; using `127.0.0.1` in the browser will fail the origin check. API documentation: **http://localhost:8000/docs**. The backend applies Alembic migrations on startup. PostgreSQL data persists in the `pgdata` named volume.
+
+On macOS/Linux, change into your own project directory, use `test -f .env || cp .env.example .env` to create configuration, and run the same Docker commands. Open the URL manually instead of using the Windows-only `Start-Process` command.
 
 For an existing installation, run `docker compose up --build -d`; keep your `.env` and volume. Migration `002` adds appointment versions, rescheduling history, and audit details without replacing existing records. Do not use `down -v`. Receptionists can reschedule a scheduled visit before an encounter starts, choose a future slot for the same doctor, enter a reason, review both times, and confirm. A conflict retains the original booking. Same-doctor restriction and all eligibility rules are enforced by the backend.
 
 Demo seeding is explicit, repeatable, and blocked unless `ENVIRONMENT=development`. It creates accounts and eight days of slots; patients are registered through the application. Rerun the seed to add current dates when returning later.
+
+### 5. Sign in and try the workflow
 
 | Role | Local demo email | Password |
 |---|---|---|
@@ -30,6 +67,73 @@ Demo seeding is explicit, repeatable, and blocked unless `ENVIRONMENT=developmen
 | Administrator | admin@careflow.demo | CareFlow-Demo-2026! |
 
 These are public **local demonstration credentials**, not production credentials. There is no public registration endpoint.
+
+As receptionist, register a fictional patient, book a future slot for Dr. Mira Demo, and try rescheduling before an encounter starts. Sign out and sign in as the doctor; select the appointment's clinic date, open the encounter, save a rough note, generate a mock draft, review/edit the fields, save, and explicitly finalize. The administrator account manages staff/slots and views operational audit metadata.
+
+### 6. Stop CareFlow when finished
+
+From PowerShell in the project folder:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker compose stop
+```
+
+This stops the application and preserves database records. `docker compose down` also preserves the named database volume while removing the containers. **Do not add `-v`** unless you intentionally want to delete the database volume.
+
+### 7. Start it again next time
+
+Open Docker Desktop first, then run:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker compose up -d
+docker compose exec -T backend python -m app.seed
+Start-Process "http://localhost:5173"
+```
+
+Use `docker compose up --build -d` instead when application code or dependencies have changed. Refreshing the seed is useful when returning on a later date.
+
+### Optional: use npm run dev and see Vite's link
+
+The simplest way to run the entire app is Docker Compose above. For frontend development, install Node.js 24, keep Docker Desktop running, and run:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker compose stop frontend
+docker compose up -d db backend
+docker compose exec -T backend python -m app.seed
+cd frontend
+npm ci
+npm run dev -- --port 5173 --strictPort
+```
+
+The Vite terminal prints its local address and must stay open. Open **http://localhost:5173** for CareFlow even if Vite prints `127.0.0.1`; the login origin must match `APP_ORIGIN`. `--strictPort` prevents silently switching to a port that the backend does not allow. Stopping the Docker frontend first frees port 5173. `npm run dev` starts only the frontend; Docker still runs the backend and database. This project has no `npm start` script.
+
+To return to the full Docker application, press **Ctrl+C** in the Vite terminal, then:
+
+```powershell
+cd "C:\Users\M Harshith\Desktop\CareFlow"
+docker compose up -d
+Start-Process "http://localhost:5173"
+```
+
+### If something does not start
+
+Run these from the project folder:
+
+```powershell
+docker compose ps
+docker compose logs --tail 50 backend frontend db
+Invoke-RestMethod "http://localhost:8000/api/health"
+```
+
+- **Docker connection error:** open Docker Desktop and wait for its engine, then retry.
+- **No configuration file found:** change into the CareFlow folder containing `docker-compose.yml`.
+- **Port 5173 already in use:** stop the Vite terminal with Ctrl+C before starting the Docker frontend, or stop the Docker frontend before starting Vite.
+- **Browser cannot connect:** check container status and logs; wait for startup/migrations, then reload `http://localhost:5173`.
+- **No upcoming slots:** rerun the explicit demo seed and choose a future date for the selected doctor.
+- **Invalid request origin:** use `http://localhost:5173` with the default configuration. Custom ports must also match `APP_ORIGIN` in `.env`.
 
 ## Architecture and main files
 
