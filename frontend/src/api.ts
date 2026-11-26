@@ -60,6 +60,8 @@ export type Encounter = {
   reviewed_note: Note;
   drafts?: Draft[];
 };
+export type PatientAppointment = Appointment & { patient_name: string };
+
 export type Page<T> = {
   items: T[];
   total: number;

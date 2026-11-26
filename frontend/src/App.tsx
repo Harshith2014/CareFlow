@@ -34,6 +34,7 @@ import type {
   Note,
   Page,
   Patient,
+  PatientAppointment,
   Slot,
   User,
 } from "./api";
@@ -129,6 +130,11 @@ export default function App() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patientForm, setPatientForm] = useState(false);
+  const [patientHistory, setPatientHistory] = useState<{
+    patient: Patient;
+    items: Page<PatientAppointment>;
+    page: number;
+  } | null>(null);
   const [encounter, setEncounter] = useState<Encounter | null>(null);
   const [rough, setRough] = useState("");
   const [review, setReview] = useState<Note | null>(null);
@@ -812,30 +818,44 @@ export default function App() {
                             <td>{p.date_of_birth}</td>
                             <td>{p.contact}</td>
                             <td>
-                              {role === "receptionist" ? (
-                                <div className="actions">
-                                  <button
-                                    className="secondary"
-                                    onClick={() => {
-                                      setSelectedPatient(p);
-                                      setScreen("Appointments");
-                                    }}
-                                  >
-                                    Book visit
-                                  </button>
-                                  <button
-                                    className="text-button"
-                                    onClick={() => {
-                                      setEditingPatient(p);
-                                      setPatientForm(true);
-                                    }}
-                                  >
-                                    Edit
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="muted">Care relationship</span>
-                              )}
+                              <div className="actions">
+                                {role === "receptionist" && (
+                                  <>
+                                    <button
+                                      className="secondary"
+                                      onClick={() => {
+                                        setSelectedPatient(p);
+                                        setScreen("Appointments");
+                                      }}
+                                    >
+                                      Book visit
+                                    </button>
+                                    <button
+                                      className="text-button"
+                                      onClick={() => {
+                                        setEditingPatient(p);
+                                        setPatientForm(true);
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  className="text-button"
+                                  onClick={() =>
+                                    void run(async () => {
+                                      const items = await api<Page<PatientAppointment>>(
+                                        `/patients/${p.id}/appointments?page=1`,
+                                      );
+                                      setPatientHistory({ patient: p, items, page: 1 });
+                                      setPatientForm(false);
+                                    })
+                                  }
+                                >
+                                  History
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -925,7 +945,61 @@ export default function App() {
                   </form>
                 </section>
               )}
-            </>
+            {patientHistory && (
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Appointment history</h2>
+                    <p className="muted">{patientHistory.patient.name}</p>
+                  </div>
+                  <button
+                    className="secondary"
+                    onClick={() => setPatientHistory(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {patientHistory.items.total === 0 ? (
+                  <Empty text="No appointments on record for this patient." />
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date &amp; time</th>
+                          <th>Doctor</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patientHistory.items.items.map((a) => (
+                          <tr key={a.id}>
+                            <td>{formatTime(a.starts_at)}</td>
+                            <td>{doctorName(a.doctor_id)}</td>
+                            <td>
+                              <Badge>{a.status}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <Pager
+                  page={patientHistory.page}
+                  total={patientHistory.items.total}
+                  change={(p) =>
+                    void run(async () => {
+                      const items = await api<Page<PatientAppointment>>(
+                        `/patients/${patientHistory.patient.id}/appointments?page=${p}`,
+                      );
+                      setPatientHistory({ ...patientHistory, items, page: p });
+                    })
+                  }
+                />
+              </section>
+            )}
+          </>
           )}
 
           {screen === "Appointments" && (

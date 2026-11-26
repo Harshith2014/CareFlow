@@ -212,6 +212,43 @@ def register(data: s.PatientInput, user=Depends(reception), db: DBSession = DB):
     return row(patient)
 
 
+@app.get("/api/patients/{patient_id}/appointments", response_model=out.Page[out.ScheduleOut])
+def patient_appointments(
+    patient_id: str,
+    page: int = Query(1, ge=1),
+    user=Depends(roles("receptionist", "doctor")),
+    db: DBSession = DB,
+):
+    if user.role == "doctor" and not care_relationship(db, patient_id, user.id):
+        raise HTTPException(403, "No care relationship")
+    required(db, Patient, patient_id)
+    query = (
+        select(Appointment, Slot, Patient.name)
+        .join(Slot)
+        .join(Patient)
+        .where(Appointment.patient_id == patient_id)
+    )
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    return {
+        "items": [
+            {
+                **row(a),
+                "starts_at": slot.starts_at,
+                "doctor_id": slot.doctor_id,
+                "patient_name": name,
+                "can_reschedule": a.status == "scheduled"
+                and not db.scalar(select(Encounter.id).where(Encounter.appointment_id == a.id)),
+            }
+            for a, slot, name in db.execute(
+                query.order_by(Slot.starts_at.desc()).offset((page - 1) * 20).limit(20)
+            )
+        ],
+        "total": total,
+        "page": page,
+        "page_size": 20,
+    }
+
+
 @app.patch("/api/patients/{patient_id}", response_model=out.PatientOut)
 def update_patient(
     patient_id: str, data: s.PatientInput, user=Depends(reception), db: DBSession = DB
