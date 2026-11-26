@@ -130,10 +130,10 @@ class LiveProvider:
                 if not isinstance(output, dict) or set(output) != set(StructuredNote.model_fields):
                     raise ProviderError("AI returned invalid structured output")
                 return StructuredNote.model_validate(output)
-            except httpx.TimeoutException, httpx.NetworkError:
+            except (httpx.TimeoutException, httpx.NetworkError):
                 if attempt == self.attempts - 1:
                     raise ProviderError("AI service timed out or is unavailable") from None
-            except KeyError, IndexError, TypeError, ValueError, ValidationError:
+            except (KeyError, IndexError, TypeError, ValueError, ValidationError):
                 raise ProviderError("AI returned invalid structured output") from None
         raise ProviderError("AI service unavailable")
 
