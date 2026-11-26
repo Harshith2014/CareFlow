@@ -140,6 +140,13 @@ export default function App() {
   const [review, setReview] = useState<Note | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [staff, setStaff] = useState<User[]>([]);
+  const [upcomingSlots, setUpcomingSlots] = useState<Page<Slot & { available: boolean }>>({
+    items: [],
+    total: 0,
+    page: 1,
+    page_size: 20,
+  });
+  const [slotsPage, setSlotsPage] = useState(1);
   const [audit, setAudit] = useState<Page<Audit>>({
     items: [],
     total: 0,
@@ -176,7 +183,7 @@ export default function App() {
     setLoading(true);
     const filter = `?day=${day}&doctor_id=${doctorFilter}`;
     try {
-      const [d, a, sl, p, team, history] = await Promise.all([
+      const [d, a, sl, p, team, history, upcoming] = await Promise.all([
         api<User[]>("/doctors"),
         api<Appointment[]>("/appointments" + filter),
         api<Slot[]>("/slots" + filter),
@@ -191,6 +198,9 @@ export default function App() {
         auth.user.role === "administrator"
           ? api<Page<Audit>>(`/audit?page=${auditPage}`)
           : Promise.resolve(null),
+        auth.user.role === "administrator"
+          ? api<Page<Slot & { available: boolean }>>(`/slots/upcoming?page=${slotsPage}`)
+          : Promise.resolve(null),
       ]);
       if (sequence !== refreshSequence.current) return;
       setDoctors(d);
@@ -199,6 +209,7 @@ export default function App() {
       if (p) setPatients(p);
       if (team) setStaff(team);
       if (history) setAudit(history);
+      if (upcoming) setUpcomingSlots(upcoming);
     } catch (error) {
       if (sequence === refreshSequence.current) {
         setSlots([]);
@@ -207,7 +218,7 @@ export default function App() {
     } finally {
       if (sequence === refreshSequence.current) setLoading(false);
     }
-  }, [auth, day, doctorFilter, query, page, auditPage]);
+  }, [auth, day, doctorFilter, query, page, auditPage, slotsPage]);
   useEffect(() => {
     let active = true;
     refresh().catch((e) => {
@@ -1453,6 +1464,73 @@ export default function App() {
                 </div>
               </section>
             </>
+          )}
+
+          {screen === "Staff & slots" && (
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>Upcoming slots</h2>
+                  <p className="muted">Available slots can be deleted. Booked slots cannot.</p>
+                </div>
+                <Badge>{upcomingSlots.total} total</Badge>
+              </div>
+              {upcomingSlots.total === 0 ? (
+                <Empty text="No upcoming slots. Create slots above." />
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date &amp; time</th>
+                        <th>Doctor</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upcomingSlots.items.map((s) => (
+                        <tr key={s.id}>
+                          <td>{formatTime(s.starts_at)}</td>
+                          <td>{doctorName(s.doctor_id)}</td>
+                          <td>
+                            <Badge>{s.available ? "available" : "booked"}</Badge>
+                          </td>
+                          <td>
+                            {s.available ? (
+                              <button
+                                className="text-button"
+                                disabled={busy}
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      `Delete this slot (${formatTime(s.starts_at)})? This cannot be undone.`,
+                                    )
+                                  )
+                                    void run(async () => {
+                                      await api(`/slots/${s.id}`, "DELETE");
+                                      await refresh();
+                                    }, "Slot deleted.");
+                                }}
+                              >
+                                Delete
+                              </button>
+                            ) : (
+                              <span className="muted">Booked</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <Pager
+                page={slotsPage}
+                total={upcomingSlots.total}
+                change={setSlotsPage}
+              />
+            </section>
           )}
 
           {screen === "Audit history" && (

@@ -34,7 +34,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings().app_origin],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "X-CSRF-Token"],
 )
 DB = Depends(get_db)
@@ -525,6 +525,51 @@ def change_staff(staff_id: str, data: s.StaffUpdate, user=Depends(admin), db: DB
     audit(db, user, "staff.role_or_status_changed", member)
     commit(db)
     return public_user(member)
+
+
+@app.get("/api/slots/upcoming", response_model=out.Page[out.AvailabilityOut])
+def upcoming_slots(
+    page: int = Query(1, ge=1),
+    doctor_id: str | None = None,
+    user=Depends(admin),
+    db: DBSession = DB,
+):
+    query = select(Slot).where(Slot.starts_at > datetime.now(timezone.utc))
+    if doctor_id:
+        query = query.where(Slot.doctor_id == doctor_id)
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    slots_page = list(
+        db.scalars(query.order_by(Slot.starts_at).offset((page - 1) * 20).limit(20))
+    )
+    return {
+        "items": [
+            {
+                **row(slot),
+                "available": not db.scalar(
+                    select(Appointment.id).where(
+                        Appointment.slot_id == slot.id, Appointment.status != "canceled"
+                    )
+                ),
+            }
+            for slot in slots_page
+        ],
+        "total": total,
+        "page": page,
+        "page_size": 20,
+    }
+
+
+@app.delete("/api/slots/{slot_id}", status_code=204)
+def delete_slot(slot_id: str, user=Depends(admin), db: DBSession = DB):
+    slot = required(db, Slot, slot_id)
+    if db.scalar(
+        select(Appointment.id).where(
+            Appointment.slot_id == slot.id, Appointment.status != "canceled"
+        )
+    ):
+        raise HTTPException(409, "Cannot delete a slot with an active booking")
+    db.delete(slot)
+    commit(db)
 
 
 @app.post("/api/slots", status_code=201, response_model=out.SlotOut)
