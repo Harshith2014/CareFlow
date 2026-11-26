@@ -1,31 +1,18 @@
-import {
-  cloneElement,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
-import type { ReactElement, ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
   CalendarDays,
   Check,
-  ClipboardList,
-  Clock3,
   KeyRound,
   LayoutDashboard,
   LogOut,
   Plus,
-  Search,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
-import { api, clinicDay, labels, onExpired, setCsrf, tzOffset } from "./api";
-import ReschedulePanel from "./ReschedulePanel";
+import { api, clinicDay, onExpired, setCsrf } from "./api";
 import type {
   Appointment,
   Audit,
@@ -39,70 +26,13 @@ import type {
   Slot,
   User,
 } from "./api";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactElement<{ id?: string }>;
-}) {
-  const id = useId();
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      {cloneElement(children, { id })}
-    </div>
-  );
-}
-function Badge({ children }: { children: ReactNode }) {
-  return (
-    <span
-      className={`badge ${children === "completed" || children === "finalized" ? "green" : ""}`}
-    >
-      {children}
-    </span>
-  );
-}
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="empty">
-      <ClipboardList size={28} />
-      <p>{text}</p>
-    </div>
-  );
-}
-function Pager({
-  page,
-  total,
-  change,
-}: {
-  page: number;
-  total: number;
-  change: (p: number) => void;
-}) {
-  return (
-    <div className="pager">
-      <span>
-        {total} records · Page {page}
-      </span>
-      <button
-        className="secondary"
-        disabled={page === 1}
-        onClick={() => change(page - 1)}
-      >
-        Previous
-      </button>
-      <button
-        className="secondary"
-        disabled={page * 20 >= total}
-        onClick={() => change(page + 1)}
-      >
-        Next
-      </button>
-    </div>
-  );
-}
+import { Field } from "./components";
+import OverviewScreen from "./screens/OverviewScreen";
+import PatientsScreen from "./screens/PatientsScreen";
+import AppointmentsScreen from "./screens/AppointmentsScreen";
+import EncounterScreen from "./screens/EncounterScreen";
+import StaffSlotsScreen from "./screens/StaffSlotsScreen";
+import AuditHistoryScreen from "./screens/AuditHistoryScreen";
 
 const ROUTES: Record<string, string> = {
   "/": "Overview",
@@ -156,12 +86,9 @@ export default function App() {
   const [review, setReview] = useState<Note | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [staff, setStaff] = useState<User[]>([]);
-  const [upcomingSlots, setUpcomingSlots] = useState<Page<Slot & { available: boolean }>>({
-    items: [],
-    total: 0,
-    page: 1,
-    page_size: 20,
-  });
+  const [upcomingSlots, setUpcomingSlots] = useState<
+    Page<Slot & { available: boolean }>
+  >({ items: [], total: 0, page: 1, page_size: 20 });
   const [slotsPage, setSlotsPage] = useState(1);
   const [audit, setAudit] = useState<Page<Audit>>({
     items: [],
@@ -193,6 +120,7 @@ export default function App() {
       .catch(() => {})
       .finally(() => setInitializing(false));
   }, []);
+
   const refresh = useCallback(async () => {
     if (!auth) return;
     const sequence = ++refreshSequence.current;
@@ -215,7 +143,9 @@ export default function App() {
           ? api<Page<Audit>>(`/audit?page=${auditPage}`)
           : Promise.resolve(null),
         auth.user.role === "administrator"
-          ? api<Page<Slot & { available: boolean }>>(`/slots/upcoming?page=${slotsPage}`)
+          ? api<Page<Slot & { available: boolean }>>(
+              `/slots/upcoming?page=${slotsPage}`,
+            )
           : Promise.resolve(null),
       ]);
       if (sequence !== refreshSequence.current) return;
@@ -226,24 +156,26 @@ export default function App() {
       if (team) setStaff(team);
       if (history) setAudit(history);
       if (upcoming) setUpcomingSlots(upcoming);
-    } catch (error) {
+    } catch (err) {
       if (sequence === refreshSequence.current) {
         setSlots([]);
-        throw error;
+        throw err;
       }
     } finally {
       if (sequence === refreshSequence.current) setLoading(false);
     }
   }, [auth, day, doctorFilter, query, page, auditPage, slotsPage]);
+
   useEffect(() => {
     let active = true;
     refresh().catch((e) => {
-      if (active) setError(e.message);
+      if (active) setError((e as Error).message);
     });
     return () => {
       active = false;
     };
   }, [refresh]);
+
   async function run(work: () => Promise<void>, success = "") {
     setBusy(true);
     setError("");
@@ -257,6 +189,7 @@ export default function App() {
       setBusy(false);
     }
   }
+
   function goTo(next: string) {
     if (
       encounter &&
@@ -271,6 +204,7 @@ export default function App() {
     setError("");
     setMessage("");
   }
+
   async function openEncounter(appointment: Appointment) {
     const e = await api<Encounter>(
       `/appointments/${appointment.id}/encounter`,
@@ -287,6 +221,7 @@ export default function App() {
     );
     setScreen("Encounter");
   }
+
   async function saveNote() {
     if (!encounter || !review) return null;
     const saved = await api<Encounter>(`/encounters/${encounter.id}`, "PATCH", {
@@ -298,11 +233,13 @@ export default function App() {
     setDraft(null);
     return saved;
   }
+
   const dirty =
     !!encounter &&
     (rough !== encounter.rough_note ||
       JSON.stringify(review) !== JSON.stringify(encounter.reviewed_note));
   const locked = encounter?.status === "finalized";
+
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (dirty) e.preventDefault();
@@ -310,6 +247,9 @@ export default function App() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+
+  const doctorName = (id: string) =>
+    doctors.find((d) => d.id === id)?.name ?? "Assigned doctor";
 
   if (initializing) return <div className="loading">Opening CareFlow…</div>;
   if (!auth)
@@ -411,121 +351,6 @@ export default function App() {
           ["Patients", Users],
           ["Appointments", CalendarDays],
         ] as const);
-  const doctorName = (id: string) =>
-    doctors.find((d) => d.id === id)?.name ?? "Assigned doctor";
-  const appointmentList = (
-    <div className="appointment-list">
-      {appointments.length === 0 ? (
-        <Empty text="No appointments for this day. A little breathing room." />
-      ) : (
-        appointments.map((a) => (
-          <div className="appointment-row" key={a.id}>
-            <div className="time">
-              {formatTime(a.starts_at)}
-              <small>30 min</small>
-            </div>
-            <div className="avatar">
-              {a.patient_name.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="appointment-person">
-              <strong>{a.patient_name}</strong>
-              <small>{doctorName(a.doctor_id)}</small>
-              {a.chief_complaint && (
-                <small>Chief concern: {a.chief_complaint}</small>
-              )}
-              {a.cancellation_reason && (
-                <small>Reason: {a.cancellation_reason}</small>
-              )}
-            </div>
-            <Badge>{a.status}</Badge>
-            {role === "receptionist" && a.status === "scheduled" && (
-              <button
-                className="secondary"
-                disabled={busy || loading || !a.can_reschedule}
-                title={
-                  !a.can_reschedule
-                    ? "An encounter has started; rescheduling is unavailable"
-                    : "Move to another slot with the same doctor"
-                }
-                onClick={() => {
-                  setRescheduling(a);
-                  setScreen("Appointments");
-                  setMessage("");
-                }}
-              >
-                Reschedule
-              </button>
-            )}
-            {role === "doctor" && a.status !== "canceled" && (
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => void run(() => openEncounter(a))}
-              >
-                {a.status === "completed" ? "View encounter" : "Open encounter"}{" "}
-                <ArrowRight size={15} />
-              </button>
-            )}
-            {role === "receptionist" && a.status === "scheduled" && (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => {
-                  const reason = prompt(
-                    "Cancel this appointment? Enter the cancellation reason (at least 3 characters).",
-                  );
-                  if (reason)
-                    void run(async () => {
-                      await api(`/appointments/${a.id}/cancel`, "POST", {
-                        reason,
-                        version: a.version,
-                      });
-                      await refresh();
-                    }, "Appointment canceled. The slot is available again.");
-                }}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        ))
-      )}
-    </div>
-  );
-  const filters = (
-    <div className="filters">
-      <Field label="Clinic date">
-        <input
-          type="date"
-          value={day}
-          onChange={(e) => {
-            setLoading(true);
-            setDay(e.target.value);
-          }}
-          required
-        />
-      </Field>
-      {role !== "doctor" && (
-        <Field label="Doctor">
-          <select
-            value={doctorFilter}
-            onChange={(e) => {
-              setLoading(true);
-              setDoctorFilter(e.target.value);
-            }}
-          >
-            <option value="">All doctors</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      )}
-      <span className="muted">{auth.timezone} · 30-minute visits</span>
-    </div>
-  );
 
   return (
     <div className="app-shell">
@@ -577,10 +402,7 @@ export default function App() {
               className="icon-button"
               onClick={() =>
                 void run(async () => {
-                  if (
-                    dirty &&
-                    !confirm("Sign out and discard unsaved changes?")
-                  )
+                  if (dirty && !confirm("Sign out and discard unsaved changes?"))
                     return;
                   await api("/auth/logout", "POST");
                   setAuth(null);
@@ -724,900 +546,131 @@ export default function App() {
           )}
 
           {screen === "Overview" && (
-            <>
-              <div className="stats">
-                {[
-                  ["Appointments", appointments.length, CalendarDays],
-                  [
-                    "Scheduled",
-                    appointments.filter((a) => a.status === "scheduled").length,
-                    Clock3,
-                  ],
-                  [
-                    "Completed",
-                    appointments.filter((a) => a.status === "completed").length,
-                    Check,
-                  ],
-                  [
-                    "Available slots",
-                    slots.filter((s) => s.available).length,
-                    ClipboardList,
-                  ],
-                ].map(([label, count, Icon]) => {
-                  const StatIcon = Icon as typeof CalendarDays;
-                  return (
-                    <section className="stat" key={String(label)}>
-                      <div>
-                        <span>{String(label)}</span>
-                        <StatIcon size={19} />
-                      </div>
-                      <strong>{String(count)}</strong>
-                      <small>For the selected clinic day</small>
-                    </section>
-                  );
-                })}
-              </div>
-              <div className="overview-grid">
-                <section className="panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h2>The day's appointments</h2>
-                      <p className="muted">Every visit, in one place.</p>
-                    </div>
-                    <Badge>{appointments.length} visits</Badge>
-                  </div>
-                  {filters}
-                  {appointmentList}
-                </section>
-                <aside className="right-column">
-                  <section className="callout">
-                    <div className="callout-icon">
-                      <Sparkles size={24} />
-                    </div>
-                    <span className="eyebrow">THOUGHTFUL DOCUMENTATION</span>
-                    <h2>A draft is a starting point.</h2>
-                    <p>
-                      The assistant organizes supplied notes. A doctor reviews,
-                      edits, and explicitly finalizes every encounter.
-                    </p>
-                    <Badge>
-                      {auth.ai_mode === "mock"
-                        ? "Mock mode · deterministic parser"
-                        : `${auth.ai_mode} mode`}
-                    </Badge>
-                  </section>
-                  <section className="panel workflow">
-                    <h3>A simple path to completion</h3>
-                    {[
-                      "Register a fictional patient",
-                      "Book an available slot",
-                      "Document & review the encounter",
-                      "Doctor finalizes the record",
-                    ].map((text, i) => (
-                      <div key={text}>
-                        <span>{i + 1}</span>
-                        {text}
-                      </div>
-                    ))}
-                  </section>
-                </aside>
-              </div>
-            </>
+            <OverviewScreen
+              auth={auth}
+              appointments={appointments}
+              slots={slots}
+              doctors={doctors}
+              day={day}
+              doctorFilter={doctorFilter}
+              busy={busy}
+              loading={loading}
+              formatTime={formatTime}
+              doctorName={doctorName}
+              setDay={setDay}
+              setDoctorFilter={setDoctorFilter}
+              setLoading={setLoading}
+              setRescheduling={setRescheduling}
+              setScreen={setScreen}
+              setMessage={setMessage}
+              run={run}
+              refresh={refresh}
+              openEncounter={openEncounter}
+            />
           )}
 
           {screen === "Patients" && (
-            <>
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Patient directory</h2>
-                  <div className="search">
-                    <Search size={17} />
-                    <input
-                      aria-label="Search patients"
-                      placeholder="Search by name…"
-                      value={query}
-                      onChange={(e) => {
-                        setQuery(e.target.value);
-                        setPage(1);
-                      }}
-                    />
-                  </div>
-                </div>
-                {patients.items.length === 0 ? (
-                  <Empty text="No matching patients. Try another name or register a fictional patient." />
-                ) : (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Patient</th>
-                          <th>Date of birth</th>
-                          <th>Contact</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {patients.items.map((p) => (
-                          <tr key={p.id}>
-                            <td>
-                              <strong>{p.name}</strong>
-                              <small className="mono">
-                                CF-{p.id.slice(0, 8).toUpperCase()}
-                              </small>
-                            </td>
-                            <td>{p.date_of_birth}</td>
-                            <td>{p.contact}</td>
-                            <td>
-                              <div className="actions">
-                                {role === "receptionist" && (
-                                  <>
-                                    <button
-                                      className="secondary"
-                                      onClick={() => {
-                                        setSelectedPatient(p);
-                                        setScreen("Appointments");
-                                      }}
-                                    >
-                                      Book visit
-                                    </button>
-                                    <button
-                                      className="text-button"
-                                      onClick={() => {
-                                        setEditingPatient(p);
-                                        setPatientForm(true);
-                                      }}
-                                    >
-                                      Edit
-                                    </button>
-                                  </>
-                                )}
-                                <button
-                                  className="text-button"
-                                  onClick={() =>
-                                    void run(async () => {
-                                      const items = await api<Page<PatientAppointment>>(
-                                        `/patients/${p.id}/appointments?page=1`,
-                                      );
-                                      setPatientHistory({ patient: p, items, page: 1 });
-                                      setPatientForm(false);
-                                    })
-                                  }
-                                >
-                                  History
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <Pager page={page} total={patients.total} change={setPage} />
-              </section>
-              {patientForm && (
-                <section className="panel form-panel">
-                  <h2>
-                    {editingPatient
-                      ? "Update demographics"
-                      : "Register a fictional patient"}
-                  </h2>
-                  <form
-                    key={editingPatient?.id ?? "new"}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const data = Object.fromEntries(
-                        new FormData(e.currentTarget),
-                      );
-                      void run(
-                        async () => {
-                          const p = await api<Patient>(
-                            editingPatient
-                              ? `/patients/${editingPatient.id}`
-                              : "/patients",
-                            editingPatient ? "PATCH" : "POST",
-                            data,
-                          );
-                          setSelectedPatient(p);
-                          setPatientForm(false);
-                          await refresh();
-                        },
-                        editingPatient
-                          ? "Demographics updated."
-                          : "Patient registered. Choose Book visit to schedule an appointment.",
-                      );
-                    }}
-                  >
-                    <div className="form-grid">
-                      <Field label="Full name">
-                        <input
-                          name="name"
-                          defaultValue={editingPatient?.name}
-                          minLength={2}
-                          maxLength={100}
-                          required
-                          placeholder="Alex Fictional"
-                        />
-                      </Field>
-                      <Field label="Date of birth">
-                        <input
-                          name="date_of_birth"
-                          type="date"
-                          defaultValue={editingPatient?.date_of_birth}
-                          min="1900-01-01"
-                          max={clinicDay(auth.timezone)}
-                          required
-                        />
-                      </Field>
-                      <Field label="Contact information">
-                        <input
-                          name="contact"
-                          defaultValue={editingPatient?.contact}
-                          minLength={3}
-                          maxLength={200}
-                          required
-                          placeholder="alex@example.test"
-                        />
-                      </Field>
-                    </div>
-                    <div className="actions">
-                      <button className="primary" disabled={busy}>
-                        Save patient
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => setPatientForm(false)}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </form>
-                </section>
-              )}
-            {patientHistory && (
-              <section className="panel">
-                <div className="panel-heading">
-                  <div>
-                    <h2>Appointment history</h2>
-                    <p className="muted">{patientHistory.patient.name}</p>
-                  </div>
-                  <button
-                    className="secondary"
-                    onClick={() => setPatientHistory(null)}
-                  >
-                    Close
-                  </button>
-                </div>
-                {patientHistory.items.total === 0 ? (
-                  <Empty text="No appointments on record for this patient." />
-                ) : (
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Date &amp; time</th>
-                          <th>Doctor</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {patientHistory.items.items.map((a) => (
-                          <tr key={a.id}>
-                            <td>{formatTime(a.starts_at)}</td>
-                            <td>{doctorName(a.doctor_id)}</td>
-                            <td>
-                              <Badge>{a.status}</Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <Pager
-                  page={patientHistory.page}
-                  total={patientHistory.items.total}
-                  change={(p) =>
-                    void run(async () => {
-                      const items = await api<Page<PatientAppointment>>(
-                        `/patients/${patientHistory.patient.id}/appointments?page=${p}`,
-                      );
-                      setPatientHistory({ ...patientHistory, items, page: p });
-                    })
-                  }
-                />
-              </section>
-            )}
-          </>
+            <PatientsScreen
+              auth={auth}
+              patients={patients}
+              page={page}
+              query={query}
+              busy={busy}
+              patientForm={patientForm}
+              editingPatient={editingPatient}
+              patientHistory={patientHistory}
+              formatTime={formatTime}
+              doctorName={doctorName}
+              setQuery={setQuery}
+              setPage={setPage}
+              setPatientForm={setPatientForm}
+              setEditingPatient={setEditingPatient}
+              setPatientHistory={setPatientHistory}
+              setSelectedPatient={setSelectedPatient}
+              setScreen={setScreen}
+              run={run}
+              refresh={refresh}
+            />
           )}
 
           {screen === "Appointments" && (
-            <>
-              {rescheduling && (
-                <ReschedulePanel
-                  key={rescheduling.id}
-                  appointment={rescheduling}
-                  timezone={auth.timezone}
-                  onClose={() => setRescheduling(null)}
-                  onComplete={async (newDay) => {
-                    await refresh();
-                    setDay(newDay);
-                    setRescheduling(null);
-                    setMessage(
-                      "Appointment rescheduled. The original slot is available again.",
-                    );
-                  }}
-                />
-              )}
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Day schedule</h2>
-                </div>
-                {filters}
-                {appointmentList}
-              </section>
-              {role === "receptionist" && (
-                <section className="panel form-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h2>Book an available appointment</h2>
-                      <p className="muted">
-                        {selectedPatient
-                          ? `Booking for ${selectedPatient.name}`
-                          : "Select a patient from the patient directory first."}
-                      </p>
-                    </div>
-                    <button
-                      className="secondary"
-                      onClick={() => goTo("Patients")}
-                    >
-                      Choose patient
-                    </button>
-                  </div>
-                  <div className="slot-grid">
-                    {slots.filter((s) => s.available).length === 0 && (
-                      <Empty text="No available slots for this selection." />
-                    )}
-                    {slots
-                      .filter((s) => s.available)
-                      .map((s) => (
-                        <button
-                          className="slot"
-                          disabled={!selectedPatient || busy || loading}
-                          key={s.id}
-                          onClick={() => {
-                            const complaint = prompt(
-                              "Chief complaint / reason for visit (optional, max 300 characters):",
-                            );
-                            if (complaint === null) return; // user cancelled
-                            void run(async () => {
-                              await api("/appointments", "POST", {
-                                slot_id: s.id,
-                                patient_id: selectedPatient?.id,
-                                chief_complaint: complaint.trim() || null,
-                              });
-                              await refresh();
-                            }, "Appointment booked.");
-                          }}
-                        >
-                          <strong>{formatTime(s.starts_at)}</strong>
-                          <span>{doctorName(s.doctor_id)}</span>
-                          <small>
-                            Book 30-minute visit <ArrowRight size={13} />
-                          </small>
-                        </button>
-                      ))}
-                  </div>
-                </section>
-              )}
-            </>
+            <AppointmentsScreen
+              auth={auth}
+              appointments={appointments}
+              slots={slots}
+              doctors={doctors}
+              rescheduling={rescheduling}
+              selectedPatient={selectedPatient}
+              day={day}
+              doctorFilter={doctorFilter}
+              busy={busy}
+              loading={loading}
+              formatTime={formatTime}
+              doctorName={doctorName}
+              setDay={setDay}
+              setDoctorFilter={setDoctorFilter}
+              setLoading={setLoading}
+              setRescheduling={setRescheduling}
+              setMessage={setMessage}
+              setScreen={setScreen}
+              run={run}
+              refresh={refresh}
+              openEncounter={openEncounter}
+              goTo={goTo}
+            />
           )}
 
           {screen === "Encounter" && encounter && review && (
-            <>
-              <section className="encounter-banner">
-                <div>
-                  <Badge>{encounter.status}</Badge>
-                  <span>
-                    Version {encounter.version} {dirty && "· Unsaved changes"}
-                  </span>
-                </div>
-                <span>
-                  {locked
-                    ? "Finalized record · Amendments are outside this demo"
-                    : "Only the assigned doctor can edit this encounter"}
-                </span>
-              </section>
-              <div className="editor-grid">
-                <section className="panel form-panel">
-                  <div className="panel-heading">
-                    <h2>Original rough note</h2>
-                    <Badge>Source</Badge>
-                  </div>
-                  <p className="muted">
-                    Fictional information only.{" "}
-                    {auth.ai_mode === "mock"
-                      ? "This demonstration parser maps Concern:, History:, Observations:, and Plan: labels. Unlabeled notes are copied into Reported concern and need manual organization."
-                      : auth.ai_mode === "live"
-                        ? "Ordinary rough notes are accepted; section labels are optional. Review every generated field against your source."
-                        : "AI is disabled. Save your source and organize the reviewed fields manually."}
-                  </p>
-                  <Field label="Rough encounter note">
-                    <textarea
-                      className="rough-note"
-                      maxLength={8000}
-                      value={rough}
-                      disabled={locked || busy}
-                      onChange={(e) => setRough(e.target.value)}
-                      placeholder={
-                        "Concern: Fictional patient reports a mild cough.\nHistory: Started yesterday.\nObservations: No measurements documented.\nPlan: Follow-up discussed."
-                      }
-                    />
-                  </Field>
-                  <small className="muted">
-                    {rough.length} / 8000 characters
-                  </small>
-                  <div className="actions">
-                    <button
-                      className="primary"
-                      disabled={busy || locked || !dirty}
-                      onClick={() =>
-                        void run(async () => {
-                          await saveNote();
-                        }, "Encounter saved.")
-                      }
-                    >
-                      Save notes
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={
-                        busy ||
-                        locked ||
-                        !rough.trim() ||
-                        auth.ai_mode === "disabled"
-                      }
-                      title={
-                        auth.ai_mode === "disabled"
-                          ? "AI disabled; write the reviewed note manually"
-                          : "Save changes and generate a separate draft"
-                      }
-                      onClick={() =>
-                        void run(async () => {
-                          const e = dirty ? await saveNote() : encounter;
-                          if (!e) return;
-                          const d = await api<Draft>(
-                            `/encounters/${e.id}/generate`,
-                            "POST",
-                            { version: e.version },
-                          );
-                          setDraft(d);
-                          if (d.status !== "succeeded")
-                            throw new Error(
-                              d.error ??
-                                "This response is stale. Reload and generate again.",
-                            );
-                        })
-                      }
-                    >
-                      <Sparkles size={16} />
-                      Generate draft
-                    </button>
-                  </div>
-                  <div className="notice">
-                    {auth.ai_mode === "mock"
-                      ? "Mock mode: deterministic label parsing, not model inference."
-                      : `${auth.ai_mode} mode: generated output requires human review.`}{" "}
-                    AI does not finalize or overwrite your original note.
-                  </div>
-                </section>
-                <section className="panel form-panel">
-                  <div className="panel-heading">
-                    <h2>Doctor-reviewed documentation</h2>
-                    <ShieldCheck size={21} />
-                  </div>
-                  <p className="muted">
-                    Verify against the source. Prompt rules and schema
-                    validation cannot guarantee factual correctness.
-                  </p>
-                  {draft && (
-                    <div className="draft-preview">
-                      <strong>Generated draft · {draft.status}</strong>
-                      <small>
-                        {draft.model} · Source version {draft.source_version}
-                      </small>
-                      {draft.output &&
-                        Object.entries(labels).map(([key, label]) => (
-                          <div key={key}>
-                            <strong>{label}</strong>
-                            <p>{draft.output?.[key as keyof Note]}</p>
-                          </div>
-                        ))}
-                      {draft.status === "succeeded" && (
-                        <button
-                          className="secondary"
-                          disabled={locked || busy}
-                          onClick={() => {
-                            if (draft.output) setReview(draft.output);
-                          }}
-                        >
-                          Use draft for review
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {Object.entries(labels).map(([key, label]) => (
-                    <Field key={key} label={label}>
-                      <textarea
-                        value={review[key as keyof Note]}
-                        disabled={locked || busy}
-                        maxLength={8000}
-                        onChange={(e) =>
-                          setReview({ ...review, [key]: e.target.value })
-                        }
-                      />
-                    </Field>
-                  ))}
-                  <button
-                    className="primary wide"
-                    disabled={busy || locked || dirty}
-                    title={
-                      dirty
-                        ? "Save your edits before finalizing"
-                        : "Finalization makes the encounter immutable"
-                    }
-                    onClick={() => {
-                      if (
-                        confirm(
-                          "I have reviewed this documentation against the source. Finalize permanently and complete the appointment?",
-                        )
-                      )
-                        void run(async () => {
-                          const e = await api<Encounter>(
-                            `/encounters/${encounter.id}/finalize`,
-                            "POST",
-                            { version: encounter.version },
-                          );
-                          setEncounter(e);
-                          await refresh();
-                        }, "Encounter finalized and appointment completed.");
-                    }}
-                  >
-                    <Check size={17} />
-                    {locked ? "Finalized" : "Finalize reviewed encounter"}
-                  </button>
-                  {dirty && (
-                    <p className="muted">Save notes before finalizing.</p>
-                  )}
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      if (
-                        !dirty ||
-                        confirm("Discard unsaved edits and reload?")
-                      )
-                        void run(async () => {
-                          const e = await api<Encounter>(
-                            `/encounters/${encounter.id}`,
-                          );
-                          setEncounter(e);
-                          setRough(e.rough_note);
-                          setReview(e.reviewed_note);
-                          setDraft(null);
-                        });
-                    }}
-                  >
-                    Reload saved encounter
-                  </button>
-                </section>
-              </div>
-            </>
+            <EncounterScreen
+              auth={auth}
+              encounter={encounter}
+              rough={rough}
+              review={review}
+              draft={draft}
+              busy={busy}
+              dirty={dirty}
+              locked={!!locked}
+              setRough={setRough}
+              setReview={setReview}
+              setDraft={setDraft}
+              setEncounter={setEncounter}
+              run={run}
+              refresh={refresh}
+              saveNote={saveNote}
+            />
           )}
 
           {screen === "Staff & slots" && (
-            <>
-              <div className="editor-grid">
-                <section className="panel form-panel">
-                  <h2>Add staff account</h2>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      void run(async () => {
-                        await api(
-                          "/staff",
-                          "POST",
-                          Object.fromEntries(new FormData(form)),
-                        );
-                        form.reset();
-                        await refresh();
-                      }, "Staff account created.");
-                    }}
-                  >
-                    <Field label="Staff name">
-                      <input
-                        name="name"
-                        required
-                        minLength={2}
-                        maxLength={100}
-                      />
-                    </Field>
-                    <Field label="Staff email">
-                      <input name="email" type="email" required />
-                    </Field>
-                    <Field label="Initial password">
-                      <input
-                        name="password"
-                        type="password"
-                        minLength={12}
-                        maxLength={128}
-                        required
-                        autoComplete="new-password"
-                      />
-                    </Field>
-                    <Field label="Role">
-                      <select name="role">
-                        <option value="receptionist">Receptionist</option>
-                        <option value="doctor">Doctor</option>
-                        <option value="administrator">Administrator</option>
-                      </select>
-                    </Field>
-                    <button className="primary" disabled={busy}>
-                      Create account
-                    </button>
-                  </form>
-                </section>
-                <section className="panel form-panel">
-                  <h2>Create a 30-minute slot</h2>
-                  <p className="muted">
-                    Enter the clinic date and time in {auth.timezone}. Starts
-                    must be on the hour or half hour.
-                  </p>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const data = new FormData(e.currentTarget);
-                      void run(async () => {
-                        await api("/slots", "POST", {
-                          doctor_id: data.get("doctor_id"),
-                          starts_at: `${data.get("starts_at")}:00${tzOffset(String(data.get("starts_at")), auth.timezone)}`,
-                        });
-                        await refresh();
-                      }, "Appointment slot created.");
-                    }}
-                  >
-                    <Field label="Slot doctor">
-                      <select name="doctor_id" required>
-                        <option value="">Choose doctor</option>
-                        {doctors.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Clinic start time">
-                      <input
-                        name="starts_at"
-                        type="datetime-local"
-                        step={1800}
-                        required
-                      />
-                    </Field>
-                    <button className="primary" disabled={busy}>
-                      Create slot
-                    </button>
-                  </form>
-                  <div className="notice">
-                    Clinic timezone is Asia/Kolkata in this version. Existing
-                    slots are preserved for booking history.
-                  </div>
-                </section>
-              </div>
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Clinic team</h2>
-                </div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Account</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {staff.map((u) => (
-                        <tr key={u.id}>
-                          <td>{u.name}</td>
-                          <td>{u.email}</td>
-                          <td>
-                            <select
-                              aria-label={`Role for ${u.name}`}
-                              value={u.role}
-                              disabled={busy || u.id === auth.user.id}
-                              onChange={(e) =>
-                                void run(async () => {
-                                  await api(`/staff/${u.id}`, "PATCH", {
-                                    role: e.target.value,
-                                    active: u.active,
-                                  });
-                                  await refresh();
-                                }, "Staff permissions updated; sessions invalidated.")
-                              }
-                            >
-                              <option value="receptionist">Receptionist</option>
-                              <option value="doctor">Doctor</option>
-                              <option value="administrator">
-                                Administrator
-                              </option>
-                            </select>
-                          </td>
-                          <td>
-                            <button
-                              className="secondary"
-                              disabled={busy || u.id === auth.user.id}
-                              onClick={() =>
-                                void run(async () => {
-                                  await api(`/staff/${u.id}`, "PATCH", {
-                                    role: u.role,
-                                    active: !u.active,
-                                  });
-                                  await refresh();
-                                }, "Account status updated.")
-                              }
-                            >
-                              {u.active ? "Deactivate" : "Activate"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </>
-          )}
-
-          {screen === "Staff & slots" && (
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Upcoming slots</h2>
-                  <p className="muted">Available slots can be deleted. Booked slots cannot.</p>
-                </div>
-                <Badge>{upcomingSlots.total} total</Badge>
-              </div>
-              {upcomingSlots.total === 0 ? (
-                <Empty text="No upcoming slots. Create slots above." />
-              ) : (
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date &amp; time</th>
-                        <th>Doctor</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {upcomingSlots.items.map((s) => (
-                        <tr key={s.id}>
-                          <td>{formatTime(s.starts_at)}</td>
-                          <td>{doctorName(s.doctor_id)}</td>
-                          <td>
-                            <Badge>{s.available ? "available" : "booked"}</Badge>
-                          </td>
-                          <td>
-                            {s.available ? (
-                              <button
-                                className="text-button"
-                                disabled={busy}
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      `Delete this slot (${formatTime(s.starts_at)})? This cannot be undone.`,
-                                    )
-                                  )
-                                    void run(async () => {
-                                      await api(`/slots/${s.id}`, "DELETE");
-                                      await refresh();
-                                    }, "Slot deleted.");
-                                }}
-                              >
-                                Delete
-                              </button>
-                            ) : (
-                              <span className="muted">Booked</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <Pager
-                page={slotsPage}
-                total={upcomingSlots.total}
-                change={setSlotsPage}
-              />
-            </section>
+            <StaffSlotsScreen
+              auth={auth}
+              staff={staff}
+              doctors={doctors}
+              upcomingSlots={upcomingSlots}
+              slotsPage={slotsPage}
+              busy={busy}
+              formatTime={formatTime}
+              doctorName={doctorName}
+              setSlotsPage={setSlotsPage}
+              run={run}
+              refresh={refresh}
+            />
           )}
 
           {screen === "Audit history" && (
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Operational audit history</h2>
-                  <p className="muted">
-                    Append-only through the API. Metadata only; no clinical note
-                    bodies.
-                  </p>
-                </div>
-                <ShieldCheck />
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>When</th>
-                      <th>Action</th>
-                      <th>Actor</th>
-                      <th>Record</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {audit.items.map((a) => (
-                      <tr key={a.id}>
-                        <td>
-                          {new Date(a.created_at).toLocaleString("en-IN", {
-                            timeZone: auth.timezone,
-                          })}
-                        </td>
-                        <td>{a.action}</td>
-                        <td>
-                          {staff.find((u) => u.id === a.actor_id)?.name ??
-                            a.actor_id}
-                        </td>
-                        <td className="mono">
-                          {a.record_id}
-                          {a.details?.reason && (
-                            <details>
-                              <summary>Rescheduling details</summary>
-                              <p>{a.details.reason}</p>
-                              <p>
-                                From: {a.details.old_starts_at}
-                                <br />
-                                To: {a.details.new_starts_at}
-                              </p>
-                            </details>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {audit.items.length === 0 && (
-                <Empty text="No audit events yet." />
-              )}
-              <Pager
-                page={auditPage}
-                total={audit.total}
-                change={setAuditPage}
-              />
-            </section>
+            <AuditHistoryScreen
+              auth={auth}
+              audit={audit}
+              auditPage={auditPage}
+              staff={staff}
+              setAuditPage={setAuditPage}
+            />
           )}
+
           <footer>
             CareFlow{" "}
             <span>
-              Independent portfolio demonstration · No clinical use or
-              compliance claims
+              Independent portfolio demonstration · No clinical use or compliance
+              claims
             </span>
           </footer>
         </main>
