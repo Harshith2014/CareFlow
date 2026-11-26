@@ -1,7 +1,8 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +11,16 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://careflow:careflow@localhost:5432/careflow"
     environment: Literal["development", "production", "test"] = "development"
     app_origin: str = "http://localhost:5173"
-    clinic_timezone: Literal["Asia/Kolkata"] = "Asia/Kolkata"
+    clinic_timezone: str = "Asia/Kolkata"
+
+    @field_validator("clinic_timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Unknown IANA timezone: {value!r}") from None
+        return value
     session_hours: int = 8
     static_dir: str = ""
     ai_mode: Literal["mock", "live", "disabled"] = "mock"
