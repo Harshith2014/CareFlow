@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Activity,
   ArrowRight,
@@ -103,10 +104,25 @@ function Pager({
   );
 }
 
+const ROUTES: Record<string, string> = {
+  "/": "Overview",
+  "/patients": "Patients",
+  "/appointments": "Appointments",
+  "/encounter": "Encounter",
+  "/staff": "Staff & slots",
+  "/audit": "Audit history",
+};
+const PATHS: Record<string, string> = Object.fromEntries(
+  Object.entries(ROUTES).map(([k, v]) => [v, k]),
+);
+
 export default function App() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const screen = ROUTES[pathname] ?? "Overview";
+  const setScreen = (name: string) => navigate(PATHS[name] ?? "/");
   const [auth, setAuth] = useState<Auth | null>(null);
   const [initializing, setInitializing] = useState(true);
-  const [screen, setScreen] = useState("Overview");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -241,7 +257,7 @@ export default function App() {
       setBusy(false);
     }
   }
-  function navigate(next: string) {
+  function goTo(next: string) {
     if (
       encounter &&
       (rough !== encounter.rough_note ||
@@ -524,7 +540,7 @@ export default function App() {
             <button
               key={name}
               className={screen === name ? "nav-item active" : "nav-item"}
-              onClick={() => navigate(name)}
+              onClick={() => goTo(name)}
             >
               <Icon size={19} />
               {name}
@@ -1054,7 +1070,7 @@ export default function App() {
                     </div>
                     <button
                       className="secondary"
-                      onClick={() => navigate("Patients")}
+                      onClick={() => goTo("Patients")}
                     >
                       Choose patient
                     </button>
