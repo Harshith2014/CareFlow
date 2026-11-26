@@ -56,6 +56,7 @@ class AppointmentOut(BaseModel):
     slot_id: str
     patient_id: str
     status: str
+    chief_complaint: str | None
     cancellation_reason: str | None
     version: int
 

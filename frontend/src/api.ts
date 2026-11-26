@@ -32,6 +32,7 @@ export type Appointment = {
   starts_at: string;
   doctor_id: string;
   status: string;
+  chief_complaint: string | null;
   cancellation_reason: string | null;
   slot_id: string;
   version: number;

@@ -403,6 +403,9 @@ export default function App() {
             <div className="appointment-person">
               <strong>{a.patient_name}</strong>
               <small>{doctorName(a.doctor_id)}</small>
+              {a.chief_complaint && (
+                <small>Chief concern: {a.chief_complaint}</small>
+              )}
               {a.cancellation_reason && (
                 <small>Reason: {a.cancellation_reason}</small>
               )}
@@ -1056,15 +1059,20 @@ export default function App() {
                           className="slot"
                           disabled={!selectedPatient || busy || loading}
                           key={s.id}
-                          onClick={() =>
+                          onClick={() => {
+                            const complaint = prompt(
+                              "Chief complaint / reason for visit (optional, max 300 characters):",
+                            );
+                            if (complaint === null) return; // user cancelled
                             void run(async () => {
                               await api("/appointments", "POST", {
                                 slot_id: s.id,
                                 patient_id: selectedPatient?.id,
+                                chief_complaint: complaint.trim() || null,
                               });
                               await refresh();
-                            }, "Appointment booked.")
-                          }
+                            }, "Appointment booked.");
+                          }}
                         >
                           <strong>{formatTime(s.starts_at)}</strong>
                           <span>{doctorName(s.doctor_id)}</span>

@@ -30,6 +30,7 @@ class PatientInput(Input):
 class Booking(Input):
     slot_id: str
     patient_id: str
+    chief_complaint: str | None = Field(default=None, max_length=300)
 
 
 class Cancellation(Input):

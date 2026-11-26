@@ -74,6 +74,7 @@ class Appointment(Base):
     slot_id: Mapped[str] = mapped_column(ForeignKey("slots.id"), index=True)
     patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="scheduled")
+    chief_complaint: Mapped[str | None] = mapped_column(String(300))
     cancellation_reason: Mapped[str | None] = mapped_column(String(300))
     version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
     __table_args__ = (
