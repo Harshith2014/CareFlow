@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session as DBSession
 from . import ai, scheduling
 from . import responses as out
 from . import schemas as s
+from .schemas import PasswordChange
 from .config import settings
 from .db import get_db
 from .hosting import mount_frontend
@@ -113,6 +114,35 @@ def me(request: Request, user=Depends(current_user)):
     return {
         "user": public_user(user),
         "csrf": request.state.auth_session.csrf,
+        "ai_mode": settings().ai_mode,
+        "timezone": settings().clinic_timezone,
+    }
+
+
+@app.patch("/api/auth/password", response_model=out.AuthOut)
+def change_password(
+    data: PasswordChange,
+    request: Request,
+    response: Response,
+    user=Depends(current_user),
+    db: DBSession = DB,
+):
+    if not passwords.verify(data.current_password, user.password_hash):
+        raise HTTPException(401, "Current password is incorrect")
+    if data.current_password == data.new_password:
+        raise HTTPException(422, "New password must differ from the current password")
+    user.password_hash = passwords.hash(data.new_password)
+    # Invalidate all sessions except the current one so other devices are signed out.
+    current_session = request.state.auth_session
+    db.execute(
+        delete(Session).where(
+            Session.user_id == user.id, Session.id != current_session.id
+        )
+    )
+    commit(db)
+    return {
+        "user": public_user(user),
+        "csrf": current_session.csrf,
         "ai_mode": settings().ai_mode,
         "timezone": settings().clinic_timezone,
     }

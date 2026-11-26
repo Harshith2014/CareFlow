@@ -14,6 +14,7 @@ import {
   Check,
   ClipboardList,
   Clock3,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -109,6 +110,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const refreshSequence = useRef(0);
   const [day, setDay] = useState(clinicDay());
@@ -527,6 +529,14 @@ export default function App() {
               <small>{role}</small>
             </div>
             <button
+              aria-label="Change password"
+              className="icon-button"
+              title="Change password"
+              onClick={() => setChangingPassword((v) => !v)}
+            >
+              <KeyRound size={18} />
+            </button>
+            <button
               aria-label="Sign out"
               className="icon-button"
               onClick={() =>
@@ -547,6 +557,66 @@ export default function App() {
               <LogOut size={18} />
             </button>
           </div>
+          {changingPassword && (
+            <form
+              className="password-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(e.currentTarget));
+                void run(async () => {
+                  if (data.new_password !== data.confirm_password)
+                    throw new Error("New passwords do not match");
+                  const a = await api<Auth>("/auth/password", "PATCH", {
+                    current_password: data.current_password,
+                    new_password: data.new_password,
+                  });
+                  setCsrf(a.csrf);
+                  setChangingPassword(false);
+                }, "Password changed. Other sessions have been signed out.");
+                (e.target as HTMLFormElement).reset();
+              }}
+            >
+              <strong>Change password</strong>
+              <input
+                name="current_password"
+                type="password"
+                placeholder="Current password"
+                autoComplete="current-password"
+                required
+                minLength={1}
+              />
+              <input
+                name="new_password"
+                type="password"
+                placeholder="New password (12+ characters)"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={128}
+              />
+              <input
+                name="confirm_password"
+                type="password"
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={128}
+              />
+              <div className="actions">
+                <button className="primary" disabled={busy}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setChangingPassword(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </aside>
       <div className="workspace">

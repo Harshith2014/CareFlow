@@ -225,6 +225,32 @@ small {
   color: #6c7a71;
   margin-left: auto;
 }
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0 4px;
+  border-top: 1px solid #e9eee9;
+  font-size: 12px;
+}
+.password-form input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #c8d4c5;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+}
+.password-form .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.password-form .actions button {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 7px;
+}
 .avatar {
   width: 35px;
   height: 35px;

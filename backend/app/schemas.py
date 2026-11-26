@@ -73,6 +73,11 @@ class StaffUpdate(Input):
     active: bool
 
 
+class PasswordChange(Input):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+
+
 class SlotInput(Input):
     doctor_id: str
     starts_at: datetime
