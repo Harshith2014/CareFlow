@@ -111,6 +111,23 @@ export async function api<T>(
   }
   return data;
 }
+/** Returns the UTC offset string (e.g. "+05:30") for an IANA timezone at the
+ *  given approximate local datetime string (e.g. "2024-07-01T10:00"). */
+export function tzOffset(localDt: string, timezone: string): string {
+  // Treat the datetime as UTC to pick a nearby instant – close enough for
+  // any timezone's DST boundary (transitions are typically ±1 hour).
+  const approx = new Date(localDt + "Z");
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: timezone,
+    timeZoneName: "longOffset",
+  }).formatToParts(approx);
+  const raw = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+00:00";
+  // "GMT+5:30" → "+05:30", "GMT-4:00" → "-04:00"
+  return raw
+    .replace("GMT", "")
+    .replace(/([+-])(\d):/, "$10$2:");
+}
+
 export function clinicDay(timezone = "Asia/Kolkata") {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,

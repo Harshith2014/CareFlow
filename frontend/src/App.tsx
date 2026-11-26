@@ -22,7 +22,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { api, clinicDay, labels, setCsrf } from "./api";
+import { api, clinicDay, labels, setCsrf, tzOffset } from "./api";
 import ReschedulePanel from "./ReschedulePanel";
 import type {
   Appointment,
@@ -1196,7 +1196,7 @@ export default function App() {
                       void run(async () => {
                         await api("/slots", "POST", {
                           doctor_id: data.get("doctor_id"),
-                          starts_at: `${data.get("starts_at")}:00+05:30`,
+                          starts_at: `${data.get("starts_at")}:00${tzOffset(String(data.get("starts_at")), auth.timezone)}`,
                         });
                         await refresh();
                       }, "Appointment slot created.");
