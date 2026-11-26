@@ -22,7 +22,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { api, clinicDay, labels, setCsrf, tzOffset } from "./api";
+import { api, clinicDay, labels, onExpired, setCsrf, tzOffset } from "./api";
 import ReschedulePanel from "./ReschedulePanel";
 import type {
   Appointment,
@@ -148,6 +148,12 @@ export default function App() {
     }).format(new Date(time));
 
   useEffect(() => {
+    onExpired(() => {
+      setAuth(null);
+      setCsrf("");
+      setEncounter(null);
+      setSelectedPatient(null);
+    });
     api<Auth>("/auth/me")
       .then((a) => {
         setCsrf(a.csrf);

@@ -79,9 +79,18 @@ export type Audit = {
   } | null;
 };
 let csrf = "";
+let onSessionExpired: (() => void) | null = null;
+
 export function setCsrf(value: string) {
   csrf = value;
 }
+
+/** Register a callback that fires whenever any API call returns 401.
+ *  The app uses this to redirect to the login screen mid-session. */
+export function onExpired(cb: () => void) {
+  onSessionExpired = cb;
+}
+
 export async function api<T>(
   path: string,
   method = "GET",
@@ -93,6 +102,11 @@ export async function api<T>(
     headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (response.status === 401) {
+    csrf = "";
+    onSessionExpired?.();
+    throw new Error("Your session has expired. Please sign in again.");
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = data.detail;
